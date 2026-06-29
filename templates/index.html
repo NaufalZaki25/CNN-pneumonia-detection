@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PneumoScan — AI Chest X-Ray Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── DESIGN SYSTEM ─────────────────────────────── */
+    :root {
+      --bg:          #050a0f;
+      --surface:     #0c1520;
+      --surface2:    #111e2e;
+      --border:      rgba(0, 200, 255, 0.12);
+      --border-glow: rgba(0, 200, 255, 0.35);
+      --cyan:        #00c8ff;
+      --cyan-dim:    rgba(0, 200, 255, 0.08);
+      --green:       #00ff9d;
+      --red:         #ff4d6d;
+      --yellow:      #ffd166;
+      --text:        #d8eaf5;
+      --text-dim:    #5a7a96;
+      --mono:        "DM Mono", monospace;
+      --sans:        "Syne", sans-serif;
+      --radius:      12px;
+      --glow:        0 0 30px rgba(0, 200, 255, 0.15);
+    }
+
+    /* ─── RESET & BASE ──────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── ANIMATED GRID BACKGROUND ─────────────────── */
+    body::before {
+      content: "";
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,200,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,200,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridShift 20s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes gridShift {
+      from { background-position: 0 0; }
+      to   { background-position: 40px 40px; }
+    }
+
+    /* ─── LAYOUT ────────────────────────────────────── */
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ─── HEADER ────────────────────────────────────── */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeDown .7s ease both;
+    }
+    @keyframes fadeDown {
+      from { opacity:0; transform: translateY(-20px); }
+      to   { opacity:1; transform: none; }
+    }
+
+    .logo-ring {
+      width: 72px; height: 72px;
+      border: 2px solid var(--cyan);
+      border-radius: 50%;
+      display: grid; place-items: center;
+      margin-bottom: 20px;
+      box-shadow: 0 0 24px rgba(0,200,255,.3), inset 0 0 24px rgba(0,200,255,.05);
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 24px rgba(0,200,255,.3), inset 0 0 24px rgba(0,200,255,.05); }
+      50%      { box-shadow: 0 0 48px rgba(0,200,255,.6), inset 0 0 32px rgba(0,200,255,.1); }
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      fill: none; stroke: var(--cyan); stroke-width: 1.6; stroke-linecap: round;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.1;
+    }
+    h1 span { color: var(--cyan); }
+
+    .subtitle {
+      font-family: var(--mono);
+      font-size: .82rem;
+      color: var(--text-dim);
+      margin-top: 10px;
+      letter-spacing: .08em;
+    }
+
+    .disclaimer-badge {
+      margin-top: 16px;
+      padding: 7px 16px;
+      border: 1px solid rgba(255,77,109,.25);
+      border-radius: 99px;
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--red);
+      letter-spacing: .05em;
+    }
+
+    /* ─── CARD ──────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--glow);
+      animation: fadeUp .6s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform: translateY(20px); }
+      to   { opacity:1; transform: none; }
+    }
+    .card:nth-child(2) { animation-delay: .1s; }
+    .card:nth-child(3) { animation-delay: .2s; }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .15em;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title::before {
+      content: "";
+      display: inline-block;
+      width: 20px; height: 1px;
+      background: var(--cyan);
+    }
+
+    /* ─── DROP ZONE ─────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 52px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .25s ease;
+      background: var(--cyan-dim);
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--cyan);
+      background: rgba(0,200,255,.12);
+      box-shadow: 0 0 40px rgba(0,200,255,.15);
+    }
+
+    .drop-icon {
+      width: 48px; height: 48px;
+      margin: 0 auto 16px;
+      stroke: var(--cyan); fill: none; stroke-width: 1.4; stroke-linecap: round;
+    }
+
+    .drop-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .drop-sub {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--text-dim);
+    }
+
+    #fileInput { display: none; }
+
+    /* ─── SCAN BUTTON ───────────────────────────────── */
+    .btn-scan {
+      width: 100%;
+      margin-top: 20px;
+      padding: 16px;
+      background: var(--cyan);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--sans);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: all .2s ease;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn-scan:hover {
+      background: #33d4ff;
+      box-shadow: 0 0 30px rgba(0,200,255,.5);
+      transform: translateY(-1px);
+    }
+    .btn-scan:active { transform: translateY(0); }
+    .btn-scan.visible { display: flex; }
+    .btn-scan:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+    /* ─── PREVIEW ───────────────────────────────────── */
+    .preview-wrap {
+      display: none;
+      margin-top: 16px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .preview-wrap.visible { display: block; }
+
+    #previewImg {
+      width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+      background: #000;
+      display: block;
+    }
+
+    .preview-label {
+      position: absolute; top: 10px; left: 10px;
+      font-family: var(--mono);
+      font-size: .68rem;
+      letter-spacing: .1em;
+      color: var(--cyan);
+      background: rgba(5,10,15,.8);
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border-glow);
+    }
+
+    /* ─── LOADER ────────────────────────────────────── */
+    .loader {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 32px;
+    }
+    .loader.visible { display: flex; }
+
+    .scanner-bar {
+      width: 200px; height: 4px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .scanner-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      border-radius: 99px;
+      animation: scan 1.2s ease-in-out infinite;
+    }
+    @keyframes scan {
+      from { transform: translateX(-200px); }
+      to   { transform: translateX(200px); }
+    }
+
+    .loader-text {
+      font-family: var(--mono);
+      font-size: .8rem;
+      color: var(--text-dim);
+      letter-spacing: .08em;
+    }
+
+    /* ─── RESULT PANEL ──────────────────────────────── */
+    #resultPanel { display: none; }
+    #resultPanel.visible { display: block; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-icon-ring {
+      width: 64px; height: 64px; flex-shrink: 0;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 1.6rem;
+      border: 2px solid;
+      transition: all .4s ease;
+    }
+    .result-icon-ring.normal    { border-color: var(--green); background: rgba(0,255,157,.08); box-shadow: 0 0 24px rgba(0,255,157,.2); }
+    .result-icon-ring.pneumonia { border-color: var(--red);   background: rgba(255,77,109,.08); box-shadow: 0 0 24px rgba(255,77,109,.2); }
+
+    .result-label-wrap {}
+    .result-tag {
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .15em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .result-label {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+    .result-label.normal    { color: var(--green); }
+    .result-label.pneumonia { color: var(--red); }
+
+    /* ─── PROBABILITY BARS ──────────────────────────── */
+    .prob-section { margin-bottom: 24px; }
+    .prob-row {
+      margin-bottom: 12px;
+    }
+    .prob-head {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--text-dim);
+      margin-bottom: 7px;
+    }
+    .prob-val { color: var(--text); font-weight: 500; }
+    .prob-track {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .prob-fill {
+      height: 100%;
+      border-radius: 99px;
+      width: 0;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+    .prob-fill.normal    { background: linear-gradient(90deg, #00ff9d, #00e68a); }
+    .prob-fill.pneumonia { background: linear-gradient(90deg, #ff4d6d, #e63354); }
+
+    /* ─── CONFIDENCE / RISK ROW ─────────────────────── */
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .meta-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .meta-label {
+      font-family: var(--mono);
+      font-size: .68rem;
+      letter-spacing: .12em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .meta-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    /* ─── MESSAGE BOX ───────────────────────────────── */
+    .msg-box {
+      background: var(--surface2);
+      border-left: 3px solid;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 20px;
+      font-family: var(--mono);
+      font-size: .8rem;
+      line-height: 1.7;
+      color: var(--text-dim);
+    }
+    .msg-box.normal    { border-color: var(--green); }
+    .msg-box.pneumonia { border-color: var(--red); }
+
+    /* ─── RESET BUTTON ──────────────────────────────── */
+    .btn-reset {
+      margin-top: 20px;
+      padding: 12px 28px;
+      background: transparent;
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius);
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .1em;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .btn-reset:hover {
+      background: var(--cyan-dim);
+      border-color: var(--cyan);
+    }
+
+    /* ─── INFO FOOTER ───────────────────────────────── */
+    .info-footer {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: .7rem;
+      color: var(--text-dim);
+      line-height: 1.8;
+      margin-top: 40px;
+    }
+    .info-footer a { color: var(--cyan); text-decoration: none; }
+
+    /* ─── ERROR BOX ─────────────────────────────────── */
+    .error-box {
+      display: none;
+      background: rgba(255,77,109,.08);
+      border: 1px solid rgba(255,77,109,.3);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      font-family: var(--mono);
+      font-size: .8rem;
+      color: var(--red);
+      margin-top: 16px;
+    }
+    .error-box.visible { display: block; }
+
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="logo-ring">
+      <svg class="logo-icon" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="12"/>
+        <line x1="18" y1="11" x2="18" y2="25"/>
+        <line x1="11" y1="18" x2="25" y2="18"/>
+      </svg>
+    </div>
+    <h1>Pneumo<span>Scan</span></h1>
+    <p class="subtitle">// CNN-BASED CHEST X-RAY ANALYSIS SYSTEM //</p>
+    <div class="disclaimer-badge">⚠ FOR RESEARCH USE ONLY — NOT A MEDICAL DEVICE</div>
+  </header>
+
+  <!-- ── UPLOAD CARD ── -->
+  <div class="card">
+    <p class="card-title">Upload X-Ray Image</p>
+
+    <div class="drop-zone" id="dropZone">
+      <svg class="drop-icon" viewBox="0 0 48 48">
+        <rect x="6" y="8" width="36" height="32" rx="4"/>
+        <line x1="16" y1="24" x2="16" y2="32"/>
+        <line x1="24" y1="18" x2="24" y2="32"/>
+        <line x1="32" y1="22" x2="32" y2="32"/>
+        <line x1="12" y1="14" x2="22" y2="14"/>
+        <line x1="17" y1="9"  x2="17" y2="19"/>
+      </svg>
+      <p class="drop-text">Drop X-ray image here</p>
+      <p class="drop-sub">or click to browse &nbsp;·&nbsp; JPG, PNG, BMP supported</p>
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.bmp,.tiff" />
+    </div>
+
+    <!-- preview -->
+    <div class="preview-wrap" id="previewWrap">
+      <div class="preview-label">UPLOADED IMAGE</div>
+      <img id="previewImg" alt="X-ray preview" />
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <button class="btn-scan" id="btnScan" onclick="runScan()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      ANALYSE X-RAY
+    </button>
+  </div>
+
+  <!-- ── LOADER ── -->
+  <div class="card loader" id="loaderCard">
+    <div class="scanner-bar"><div class="scanner-bar-inner"></div></div>
+    <p class="loader-text">RUNNING INFERENCE — PLEASE WAIT...</p>
+  </div>
+
+  <!-- ── RESULT CARD ── -->
+  <div class="card" id="resultPanel">
+    <p class="card-title">Analysis Result</p>
+
+    <div class="result-header">
+      <div class="result-icon-ring" id="resultIcon"></div>
+      <div class="result-label-wrap">
+        <p class="result-tag">Diagnosis</p>
+        <p class="result-label" id="resultLabel">—</p>
+      </div>
+    </div>
+
+    <!-- probability bars -->
+    <div class="prob-section">
+      <div class="prob-row">
+        <div class="prob-head">
+          <span>NORMAL</span>
+          <span class="prob-val" id="pNormal">0%</span>
+        </div>
+        <div class="prob-track"><div class="prob-fill normal" id="barNormal"></div></div>
+      </div>
+      <div class="prob-row">
+        <div class="prob-head">
+          <span>PNEUMONIA</span>
+          <span class="prob-val" id="pPneumonia">0%</span>
+        </div>
+        <div class="prob-track"><div class="prob-fill pneumonia" id="barPneumonia"></div></div>
+      </div>
+    </div>
+
+    <!-- meta cards -->
+    <div class="meta-grid">
+      <div class="meta-card">
+        <p class="meta-label">Confidence</p>
+        <p class="meta-value" id="metaConf">—</p>
+      </div>
+      <div class="meta-card">
+        <p class="meta-label">Risk Level</p>
+        <p class="meta-value" id="metaRisk">—</p>
+      </div>
+    </div>
+
+    <!-- message -->
+    <div class="msg-box" id="msgBox"></div>
+
+    <button class="btn-reset" onclick="resetUI()">↩ &nbsp;SCAN ANOTHER IMAGE</button>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="info-footer">
+    <p>Model: MobileNetV2 (Transfer Learning) &nbsp;·&nbsp; Dataset: Kaggle Chest X-Ray Images</p>
+    <p>This tool is for <strong>research and educational purposes only</strong>.<br>
+       Always consult a licensed medical professional for diagnosis.</p>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DRAG & DROP + FILE INPUT
+// ─────────────────────────────────────────────
+
+const dropZone   = document.getElementById("dropZone");
+const fileInput  = document.getElementById("fileInput");
+const previewWrap= document.getElementById("previewWrap");
+const previewImg = document.getElementById("previewImg");
+const btnScan    = document.getElementById("btnScan");
+const errorBox   = document.getElementById("errorBox");
+
+let selectedFile = null;
+
+dropZone.addEventListener("click", () => fileInput.click());
+
+dropZone.addEventListener("dragover", e => {
+  e.preventDefault();
+  dropZone.classList.add("drag-over");
+});
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  selectedFile = file;
+  hideError();
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    previewImg.src = e.target.result;
+    previewWrap.classList.add("visible");
+  };
+  reader.readAsDataURL(file);
+
+  btnScan.classList.add("visible");
+  document.getElementById("resultPanel").classList.remove("visible");
+}
+
+// ─────────────────────────────────────────────
+// SCAN
+// ─────────────────────────────────────────────
+
+async function runScan() {
+  if (!selectedFile) return;
+
+  hideError();
+  btnScan.disabled = true;
+
+  // Show loader
+  const loader = document.getElementById("loaderCard");
+  loader.classList.add("visible");
+  document.getElementById("resultPanel").classList.remove("visible");
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  try {
+    const resp = await fetch("/predict", { method: "POST", body: formData });
+    const data = await resp.json();
+
+    loader.classList.remove("visible");
+    btnScan.disabled = false;
+
+    if (data.error) {
+      showError(data.error);
+      return;
+    }
+
+    renderResult(data);
+
+  } catch (err) {
+    loader.classList.remove("visible");
+    btnScan.disabled = false;
+    showError("Network error: " + err.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// RENDER RESULT
+// ─────────────────────────────────────────────
+
+function renderResult(data) {
+  const panel    = document.getElementById("resultPanel");
+  const isPneu   = data.label === "PNEUMONIA";
+  const cls      = isPneu ? "pneumonia" : "normal";
+
+  // Icon
+  const iconRing = document.getElementById("resultIcon");
+  iconRing.className = "result-icon-ring " + cls;
+  iconRing.textContent = isPneu ? "🫁" : "✓";
+
+  // Label
+  const lbl = document.getElementById("resultLabel");
+  lbl.textContent = data.label;
+  lbl.className   = "result-label " + cls;
+
+  // Bars (animate after small delay)
+  document.getElementById("pNormal").textContent    = data.probability_normal    + "%";
+  document.getElementById("pPneumonia").textContent = data.probability_pneumonia + "%";
+  setTimeout(() => {
+    document.getElementById("barNormal").style.width    = data.probability_normal    + "%";
+    document.getElementById("barPneumonia").style.width = data.probability_pneumonia + "%";
+  }, 100);
+
+  // Meta
+  document.getElementById("metaConf").textContent = data.confidence + "%";
+
+  const riskEl = document.getElementById("metaRisk");
+  riskEl.textContent = data.risk_level;
+  riskEl.style.color = data.risk_level === "High" ? "var(--red)" :
+                       data.risk_level === "Moderate" ? "var(--yellow)" : "var(--green)";
+
+  // Message
+  const msgBox = document.getElementById("msgBox");
+  msgBox.textContent = data.message;
+  msgBox.className   = "msg-box " + cls;
+
+  panel.classList.add("visible");
+
+  // Smooth scroll to result
+  setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+}
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+function resetUI() {
+  selectedFile = null;
+  fileInput.value = "";
+  previewWrap.classList.remove("visible");
+  btnScan.classList.remove("visible");
+  btnScan.disabled = false;
+  document.getElementById("resultPanel").classList.remove("visible");
+  document.getElementById("loaderCard").classList.remove("visible");
+  hideError();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showError(msg) {
+  errorBox.textContent = "⚠ " + msg;
+  errorBox.classList.add("visible");
+}
+function hideError() {
+  errorBox.classList.remove("visible");
+  errorBox.textContent = "";
+}
+</script>
+</body>
+</html>
