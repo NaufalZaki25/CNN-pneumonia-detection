@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🫁 PneumoScan — Pneumonia Detection from Chest X-Rays
 ## Beginner's Complete Guide
 
@@ -148,3 +149,6 @@ for actual clinical diagnosis. Always consult a licensed physician.
 | Low accuracy | Try increasing `EPOCHS_FINE` or reducing `Dropout` |
 | Slow training | Use Google Colab (free GPU) or reduce image size to 160×160 |
 | Port 5000 in use | Change `port=5000` to `port=8080` in `app.py` |
+=======
+# CNN-pneumonia-detection
+>>>>>>> 61d4c87ca7601fe3187997673ef9e555d7c078d5
