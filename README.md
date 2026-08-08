@@ -35,10 +35,10 @@ We use **Transfer Learning** with **MobileNetV2**:
 
 ### Step 1 — Download the Dataset from Kaggle
 
-1. Go to: https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia
+1. Go to: https://www.kaggle.com/datasets/pcbreviglieri/pneumonia-xray-images
 2. Click "Download" (ZIP file ~2 GB)
 3. Extract it — you should get a folder named `chest_xray/`
-4. Place it in the same folder as `train.py`
+4. Place the `chest_xray/` in the same folder as `train.py`
 
 Expected structure:
 ```
