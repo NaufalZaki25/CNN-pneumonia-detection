@@ -175,10 +175,6 @@ model.compile(
 
 # Callbacks: helpers that run automatically during training
 callbacks = [
-    # Stop training if validation loss doesn't improve for 5 epochs
-    keras.callbacks.EarlyStopping(
-        monitor="val_loss", patience=5, restore_best_weights=True, verbose=1
-    ),
     # Save the model checkpoint whenever val_loss improves
     keras.callbacks.ModelCheckpoint(
         MODEL_SAVE, monitor="val_loss", save_best_only=True, verbose=1,
