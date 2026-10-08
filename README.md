@@ -91,7 +91,7 @@ Expected output:
 ```
 📂 Loading dataset...
 ✅ Classes: {'NORMAL': 0, 'PNEUMONIA': 1}
-✅ Training samples  : 5216
+✅ Training samples  : 4192
 ...
 🎉 Training complete! Model saved to: ./pneumonia_model.h5
 ```
@@ -126,8 +126,8 @@ and get an instant prediction!
 ## Model Performance (Expected)
 
 With the standard Kaggle dataset, you should achieve approximately:
-- Accuracy: ~92-95%
-- AUC: ~0.97
+- Accuracy: ~80-95%
+- AUC: ~0.94
 - Recall (sensitivity): ~95%+ (important: we want to catch all pneumonia cases!)
 
 ---
