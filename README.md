@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🫁 PneumoScan — Pneumonia Detection from Chest X-Rays
 ## Beginner's Complete Guide
 
@@ -123,12 +122,13 @@ and get an instant prediction!
 
 ---
 
-## Model Performance (Expected)
+## Model Performance
 
-With the standard Kaggle dataset, you should achieve approximately:
-- Accuracy: ~80-95%
-- AUC: ~0.94
-- Recall (sensitivity): ~95%+ (important: we want to catch all pneumonia cases!)
+Test Loss       : 0.5562  
+Test Accuracy   : 83.97%  
+Test AUC        : 0.9424 
+Test Precision  : 0.8046  
+Test Recall     : 0.9821
 
 ---
 
